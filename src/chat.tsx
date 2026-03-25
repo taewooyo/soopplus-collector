@@ -129,6 +129,25 @@ let flushScheduled = false;
 const FLUSH_INTERVAL = 200; // ms
 
 const callback = (mutationList: MutationRecord[], observer: MutationObserver) => {
+    // 하이라이트만 즉시 적용 (classList.add는 비용이 거의 없음)
+    if (highlight?.isUse) {
+        for (const mutation of mutationList) {
+            mutation.addedNodes.forEach((node) => {
+                if (node.parentNode == null || node.nodeName !== 'DIV') return;
+                const container = (node as HTMLElement).querySelector('.message-container');
+                if (!container) return;
+                const userButton = container.querySelector('.username button');
+                if (!userButton) return;
+                const rawUserId = userButton.getAttribute('user_id');
+                const nickName = userButton.getAttribute('user_nick');
+                const grade = userButton.getAttribute('grade');
+                if (!rawUserId || !nickName || !grade) return;
+                if (filter(nickName, rawUserId, grade)) {
+                    (node as HTMLElement).classList.add('tbc-highlight');
+                }
+            });
+        }
+    }
     pendingMutations.push(...mutationList);
     if (!flushScheduled) {
         flushScheduled = true;
@@ -175,12 +194,7 @@ function flushPendingNodes() {
 
                     if (filter(nickName, rawUserId, grade) && filterArea != null) {
                         const clonedNode = node.cloneNode(true);
-                        if (highlight?.isUse) {
-                            const clonedContainer = (clonedNode as HTMLElement).querySelector('.message-container') as HTMLElement;
-                            clonedContainer.style.borderLeft = "4px solid rgb(255, 193, 7)";
-                            clonedContainer.style.paddingLeft = "10px";
-                            clonedContainer.style.marginLeft = "-16px";
-                        }
+                        (clonedNode as HTMLElement).classList.remove('tbc-highlight');
                         fragment.appendChild(clonedNode);
                     }
                 }
@@ -605,11 +619,16 @@ const startDrag = function (e: MouseEvent | TouchEvent) {
 
     window.addEventListener("mousemove", doDrag);
     window.addEventListener("touchmove", doDrag);
-    window.addEventListener("mouseup", endDrag);
-    window.addEventListener("touchend", endDrag);
+    window.addEventListener("mouseup", endDrag, true);
+    window.addEventListener("touchend", endDrag, true);
 }
 
 const doDrag = (e: MouseEvent | TouchEvent) => {
+    // mouseup을 놓친 경우 감지 (iframe 위에서 놓았을 때 등)
+    if (e instanceof MouseEvent && e.buttons === 0) {
+        endDrag();
+        return;
+    }
     const chatListContainer = document.getElementById("afreeca-chat-list-container")
 
     const clientY = "touches" in e ? e.touches[0].clientY : e.clientY
@@ -648,8 +667,8 @@ const endDrag = function () {
     chrome.storage.local.set({containerRatio, position});
     window.removeEventListener("mousemove", doDrag);
     window.removeEventListener("touchmove", doDrag);
-    window.removeEventListener("mouseup", endDrag);
-    window.removeEventListener("touchend", endDrag);
+    window.removeEventListener("mouseup", endDrag, true);
+    window.removeEventListener("touchend", endDrag, true);
 };
 
 function updateContainerRatio(

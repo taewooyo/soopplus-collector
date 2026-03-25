@@ -137,6 +137,16 @@
     padding: 0 !important;
 }
 
+/* 콜렉터 하이라이트 */
+.tbc-highlight .message-container {
+    border-left: 3px solid transparent;
+    border-image: linear-gradient(180deg, #ffc107, #ff9800) 1;
+    padding-left: 10px;
+    margin-left: -13px;
+    background: linear-gradient(90deg, rgba(255, 193, 7, 0.08) 0%, transparent 60%);
+    border-radius: 0 4px 4px 0;
+}
+
 .main_chat_area {
     margin-top: 10px;
     order: 3;
