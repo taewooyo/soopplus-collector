@@ -16,7 +16,28 @@
     "components/nav": false,
     "components/progress": false,
     "components/tooltip": false,
-    "utilities/accessibility": false,
-    "utilities/reduce-motion": false
+    "utilities/accessibility": true,
+    "utilities/reduce-motion": true
   )
 );
+
+:root {
+  --card-bg: #ffffff;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --footer-bg: #f5f5f5;
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --subtitle-accent: var(--pico-primary);
+  --filter-item-bg: #f5f5f5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --card-bg: #1e1e1e;
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --footer-bg: #1a1a1a;
+    --filter-item-bg: #2a2a2a;
+  }
+}

@@ -1,16 +1,29 @@
-
+import { useId } from "react";
 import { ToggleProps } from "../../types/toggle";
 import { ToggleWrapper } from "./style";
 
-const Toggle = ({ onChange, label, value }: ToggleProps) => {
+const Toggle = ({ onChange, label, value, id: propId, description }: ToggleProps) => {
+  const generatedId = useId();
+  const toggleId = propId || generatedId;
+  const descriptionId = description ? `${toggleId}-description` : undefined;
+
   return (
     <ToggleWrapper>
       <input
+        id={toggleId}
         onChange={onChange}
-        type="checkbox" role="switch" 
+        type="checkbox"
+        role="switch"
         checked={value}
+        aria-checked={value}
+        aria-describedby={descriptionId}
       />
-      {label}
+      <span id={`${toggleId}-label`}>{label}</span>
+      {description && (
+        <span id={descriptionId} className="sr-only">
+          {description}
+        </span>
+      )}
     </ToggleWrapper>
   );
 };

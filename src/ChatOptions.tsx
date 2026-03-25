@@ -8,6 +8,7 @@ import { SupportBadge } from "./model/SupportBadge";
 import { TopfanBadge } from "./model/TopfanBadge";
 import { Divider } from "./model/Divider";
 import SubTitle from "./components/SubTitle";
+import Card from "./components/Card";
 import styled from "styled-components";
 
 interface IProps {
@@ -82,18 +83,55 @@ const ChatOptions = ({ wrapStyle, ...props }: IProps) => {
   };
 
   return (
-    <Wrapper style={wrapStyle}>
-      <SubTitle>채팅창 설정</SubTitle>
-      <div className="parent">
-        <Toggle onChange={changeDivider} label="채팅 구분자" value={divider.isUse} />
-        <Toggle onChange={changeChatSetting} label="채팅 시작 정렬" value={chatSetting.isUse} />
-        <Toggle onChange={changeChatTwoLine} label="채팅 두줄 보기" value={chatTwoLine.isUse} />
-        <Toggle onChange={changeSubscribeBadge} label="구독 뱃지 제거" value={subscribeBadge.isUse} />
-        <Toggle onChange={changeTopFanBadge} label="열혈팬 뱃지 제거" value={topFanBadge.isUse} />
-        <Toggle onChange={changeFanBadge} label="팬클럽 뱃지 제거" value={fanBadge.isUse} />
-        <Toggle onChange={changeSupportBadge} label="서포터 뱃지 제거" value={supportBadge.isUse} />
-      </div>
-    </Wrapper>
+    <Card style={wrapStyle}>
+      <Wrapper>
+        <SubTitle>채팅창 설정</SubTitle>
+        <div className="parent" role="group" aria-label="채팅창 설정 옵션">
+          <Toggle
+            onChange={changeDivider}
+            label="채팅 구분자"
+            value={divider.isUse}
+            description="채팅 메시지 사이에 구분선을 추가합니다"
+          />
+          <Toggle
+            onChange={changeChatSetting}
+            label="채팅 시작 정렬"
+            value={chatSetting.isUse}
+            description="채팅 메시지를 왼쪽 정렬로 시작합니다"
+          />
+          <Toggle
+            onChange={changeChatTwoLine}
+            label="채팅 두줄 보기"
+            value={chatTwoLine.isUse}
+            description="채팅을 두 줄로 표시합니다"
+          />
+          <Toggle
+            onChange={changeSubscribeBadge}
+            label="구독 뱃지 제거"
+            value={subscribeBadge.isUse}
+            description="구독자 뱃지를 숨깁니다"
+          />
+          <Toggle
+            onChange={changeTopFanBadge}
+            label="열혈팬 뱃지 제거"
+            value={topFanBadge.isUse}
+            description="열혈팬 뱃지를 숨깁니다"
+          />
+          <Toggle
+            onChange={changeFanBadge}
+            label="팬클럽 뱃지 제거"
+            value={fanBadge.isUse}
+            description="팬클럽 뱃지를 숨깁니다"
+          />
+          <Toggle
+            onChange={changeSupportBadge}
+            label="서포터 뱃지 제거"
+            value={supportBadge.isUse}
+            description="서포터 뱃지를 숨깁니다"
+          />
+        </div>
+      </Wrapper>
+    </Card>
   );
 };
 
