@@ -114,105 +114,111 @@ function filter(nickname: string, rawUserId: string, userType: string): boolean 
     return flag == 1;
 }
 
-let chatArea: Element | null
+let chatArea: Element | null;
+let isUserScrolling = false;
+
+// 성능 최적화: CSS 기반 뱃지 숨기기 클래스 토글
+function updateBadgeClasses() {
+    const areas = [document.querySelector('.live-area'), document.querySelector('.filter-area')];
+    areas.forEach(area => {
+        if (!area) return;
+        area.classList.toggle('hide-subscribe', !!subscribeBadge?.isUse);
+        area.classList.toggle('hide-topfan', !!topFanBadge?.isUse);
+        area.classList.toggle('hide-fan', !!fanBadge?.isUse);
+        area.classList.toggle('hide-support', !!supportBadge?.isUse);
+    });
+}
+
+// 성능 최적화: Range API를 사용한 일괄 DOM 삭제
+function trimChildren(el: Element, maxCount: number) {
+    const overflow = el.children.length - maxCount;
+    if (overflow > 0) {
+        const range = document.createRange();
+        range.setStartBefore(el.children[0]);
+        range.setEndAfter(el.children[overflow - 1]);
+        range.deleteContents();
+    }
+}
+
+// 성능 최적화: 배치 처리 + 쓰로틀링
+let pendingMutations: MutationRecord[] = [];
+let flushScheduled = false;
+const FLUSH_INTERVAL = 200; // ms
+
 const callback = (mutationList: MutationRecord[], observer: MutationObserver) => {
-    mutationList.forEach((mutation: MutationRecord) => {
-        mutation.addedNodes.forEach((node) => {
-            if (node.parentNode == null) return;
-            if (node.nodeName == 'DIV') {
-                const container = (node as HTMLElement).querySelector('.message-container')
-                if (container == null) return
-                const user = container.querySelector('.username')
-                if (user == null) return
-                const userButton = user.querySelector('button')
-                if (userButton == null) return
-                const rawUserId = (userButton.lastElementChild as HTMLElement).getAttribute('user_id');
-                const nickName = (userButton.lastElementChild as HTMLElement).getAttribute('user_nick');
-                const userType = (container.parentElement as HTMLElement).getAttribute('user-type');
-                if (rawUserId == null) return;
-                if (nickName == null) return;
-                if (userType == null) return;
-                // 구독자 뱃지 제거
-                if (subscribeBadge.isUse) {
-                    const thumb = (node as HTMLElement).querySelector('.thumb');
-                    if (thumb != null) {
-                        (thumb as HTMLElement).style.setProperty("display", "none");
-                    }
-                } else {
-                    const thumb = (node as HTMLElement).querySelector('.thumb');
-                    if (thumb != null) {
-                        (thumb as HTMLElement).style.setProperty("display", "inline-block");
-                    }
-                }
+    pendingMutations.push(...mutationList);
+    if (!flushScheduled) {
+        flushScheduled = true;
+        setTimeout(flushPendingNodes, FLUSH_INTERVAL);
+    }
+};
 
-                // 열혈팬 뱃지 제거
-                if (topFanBadge.isUse) {
-                    const topFan = (node as HTMLElement).querySelector('.grade-badge-vip');
-                    if (topFan != null) {
-                        (topFan as HTMLElement).style.setProperty("display", "none");
-                    }
-                } else {
-                    const topFan = (node as HTMLElement).querySelector('.grade-badge-vip');
-                    if (topFan != null) {
-                        (topFan as HTMLElement).style.removeProperty("display");
-                    }
-                }
+function flushPendingNodes() {
+    flushScheduled = false;
+    const mutations = pendingMutations;
+    pendingMutations = [];
 
-                // 팬 뱃지 제거
-                if (fanBadge.isUse) {
-                    const fan = (node as HTMLElement).querySelector('.grade-badge-fan');
-                    if (fan != null) {
-                        (fan as HTMLElement).style.setProperty("display", "none");
-                    }
-                } else {
-                    const fan = (node as HTMLElement).querySelector('.grade-badge-fan');
-                    if (fan != null) {
-                        (fan as HTMLElement).style.removeProperty("display");
-                    }
-                }
+    requestAnimationFrame(() => {
+        const fragment = document.createDocumentFragment();
+        for (const mutation of mutations) {
+            mutation.addedNodes.forEach((node) => {
+                if (node.parentNode == null) return;
+                if (node.nodeName == 'DIV') {
+                    const container = (node as HTMLElement).querySelector('.message-container');
+                    if (container == null) return;
+                    const user = container.querySelector('.username');
+                    if (user == null) return;
+                    const userButton = user.querySelector('button');
+                    if (userButton == null) return;
+                    const lastChild = userButton.lastElementChild as HTMLElement;
+                    if (lastChild == null) return;
+                    const parentEl = container.parentElement as HTMLElement;
+                    if (parentEl == null) return;
+                    const rawUserId = lastChild.getAttribute('user_id');
+                    const nickName = lastChild.getAttribute('user_nick');
+                    const userType = parentEl.getAttribute('user-type');
+                    if (rawUserId == null) return;
+                    if (nickName == null) return;
+                    if (userType == null) return;
 
-                // 서포터 뱃지 제거
-                if (supportBadge.isUse) {
-                    const support = (node as HTMLElement).querySelector('.grade-badge-support');
-                    if (support != null) {
-                        (support as HTMLElement).style.setProperty("display", "none");
-                    }
-                } else {
-                    const support = (node as HTMLElement).querySelector('.grade-badge-support');
-                    if (support != null) {
-                        (support as HTMLElement).style.removeProperty("display");
-                    }
-                }
-
-                if (divider.isUse) {
-                    const author = (node as HTMLElement).querySelector('.author')
+                    // 뱃지 숨기기는 CSS 클래스로 처리 (updateBadgeClasses)
+                    // 채팅 분리선
+                    const author = (node as HTMLElement).querySelector('.author');
                     if (author != null) {
                         const text = (author as HTMLElement).innerText;
-                        (author as HTMLElement).innerText = text + " : ";
-                    }
-                } else {
-                    const author = (node as HTMLElement).querySelector('.author')
-                    if (author != null) {
-                        const text = (author as HTMLElement).innerText;
-                        const index = text.indexOf(" : ");
-                        if (index != -1) {
-                            (author as HTMLElement).innerText = text.substring(index);
+                        if (divider?.isUse) {
+                            (author as HTMLElement).innerText = text + " : ";
+                        } else {
+                            const index = text.indexOf(" : ");
+                            if (index != -1) {
+                                (author as HTMLElement).innerText = text.substring(index);
+                            }
                         }
                     }
-                }
 
-                if (filter(nickName, rawUserId, userType) && filterArea != null) {
-                    (filterArea as HTMLElement).appendChild(node.cloneNode(true));
-                    if (highlight.isUse) {
-                        (container as HTMLElement).style.borderLeft = "4px solid rgb(255, 193, 7)";
-                        (container as HTMLElement).style.paddingLeft = "10px";
-                        (container as HTMLElement).style.marginLeft = "-16px";
+                    if (filter(nickName, rawUserId, userType) && filterArea != null) {
+                        const clonedNode = node.cloneNode(true);
+                        if (highlight?.isUse) {
+                            const clonedContainer = (clonedNode as HTMLElement).querySelector('.message-container') as HTMLElement;
+                            clonedContainer.style.borderLeft = "4px solid rgb(255, 193, 7)";
+                            clonedContainer.style.paddingLeft = "10px";
+                            clonedContainer.style.marginLeft = "-16px";
+                        }
+                        fragment.appendChild(clonedNode);
                     }
-                    (filterArea as HTMLElement).scrollTop = filterArea.scrollHeight;
                 }
+            });
+        }
+        if (filterArea) {
+            filterArea.appendChild(fragment);
+            // 성능 최적화: Range API로 일괄 삭제
+            trimChildren(filterArea, 300);
+            // 성능 최적화: scrollIntoView로 reflow 최소화
+            if (!isUserScrolling && filterArea.lastElementChild) {
+                filterArea.lastElementChild.scrollIntoView({ block: 'end', behavior: 'instant' });
             }
-        })
-    })
+        }
+    });
 }
 
 let filterArea: HTMLDivElement;
@@ -233,6 +239,7 @@ async function initLocalChatContainer() {
     container.style.setProperty('will-change', 'scroll-position');
 
     chatArea.classList.add('live-area');
+    filterArea.id = "filterChatArea"
     filterArea.classList.add('filter-area');
     filterArea.style.display = "none";
     filterArea.style.height = '30%';
@@ -247,9 +254,25 @@ async function initLocalChatContainer() {
     handleContainer.appendChild(resizeHandle);
     handleContainer.style.display = "none";
 
+    // 그립 도트 추가
+    const gripDots = document.createElement('div');
+    gripDots.className = 'grip-dots';
+    for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'grip-dot';
+        gripDots.appendChild(dot);
+    }
+    resizeHandle.appendChild(gripDots);
+
     handleContainer.addEventListener("mousedown", startDrag);
     handleContainer.addEventListener("touchstart", startDrag);
-    handleContainer.appendChild(resizeHandle);
+    // 더블클릭 시 기본 비율(30%)로 복원
+    handleContainer.addEventListener("dblclick", () => {
+        containerRatio = 30;
+        position = "up";
+        updateContainerRatio(containerRatio, position);
+        chrome.storage.local.set({containerRatio, position});
+    });
 
     container.appendChild(filterArea);
     container.appendChild(handleContainer);
@@ -460,12 +483,8 @@ setTimeout(async () => {
         if (chatCollector.isUse) {
             await divideContainer()
         } else restoreContainer()
-        // const t = document.getElementById("chatbox");
-        // if (t != null) {
-        //     resizeObserver.observe(t);
-        // }
-        // CaptureButton();
-        // CollectorChange();
+        // 성능 최적화: CSS 기반 뱃지 숨기기 적용
+        updateBadgeClasses();
         const observer = new MutationObserver(callback);
         if (chatArea) {
             observer.observe((chatArea as Node), config)
@@ -520,6 +539,8 @@ chrome.storage.local.onChanged.addListener(async (changes) => {
             (filterArea as HTMLElement).removeAttribute('data-mngr');
         }
     }
+    // 성능 최적화: CSS 기반 뱃지 숨기기 적용
+    updateBadgeClasses();
     if (chatCollector.isUse) {
         await divideContainer()
     } else restoreContainer()
@@ -536,6 +557,18 @@ const startDrag = function (e: MouseEvent | TouchEvent) {
     e.preventDefault();
 
     if (!filterArea) return;
+
+    // 드래그 중 transition 비활성화
+    const fa = document.querySelector('.filter-area') as HTMLElement;
+    const la = document.querySelector('.live-area') as HTMLElement;
+    if (fa) fa.style.transition = 'none';
+    if (la) la.style.transition = 'none';
+
+    // 드래그 시각 피드백
+    const handle = document.getElementById('handle-container');
+    handle?.classList.add('is-dragging');
+    document.body.classList.add('dragging');
+
     if (!collectorChangeFlag) {
         filterArea.classList.add("freeze");
         position = getPosition(filterArea);
@@ -577,8 +610,18 @@ const endDrag = function () {
         liveArea.classList.remove("freeze");
     }
 
+    // 드래그 시각 피드백 제거
+    const handle = document.getElementById('handle-container');
+    handle?.classList.remove('is-dragging');
+    document.body.classList.remove('dragging');
+
+    // transition 복원
+    const fa = document.querySelector('.filter-area') as HTMLElement;
+    const la = document.querySelector('.live-area') as HTMLElement;
+    if (fa) fa.style.transition = '';
+    if (la) la.style.transition = '';
+
     chrome.storage.local.set({containerRatio, position});
-    // chrome.storage.local.set({position});
     window.removeEventListener("mousemove", doDrag);
     window.removeEventListener("touchmove", doDrag);
     window.removeEventListener("mouseup", endDrag);
@@ -590,6 +633,9 @@ function updateContainerRatio(
     position: string,
 ) {
     if (ratio != 0) ratio = ratio ? ratio : 30;
+
+
+
 
     let orig_size = ratio === 0 ? 1 : ratio === 10 ? 0 : 1;
     let clone_size = ratio === 0 ? 0 : ratio === 10 ? 1 : 0;
@@ -610,7 +656,10 @@ function updateContainerRatio(
 
         (orig as HTMLDivElement).style.height = `${orig_size * 100}%`;
         (clone as HTMLDivElement).style.height = `${clone_size * 100}%`;
-        // chrome.storage.local.set({filteringPercentage: clone_size * 100});
+
+        // 스냅 상태 클래스 관리
+        clone.classList.toggle('snapped-hidden', clone_size === 0);
+        orig.classList.toggle('snapped-hidden', orig_size === 0);
     } else {
         const orig = document.querySelector(".filter-area");
         const clone = document.querySelector(".live-area");
@@ -618,7 +667,10 @@ function updateContainerRatio(
 
         (orig as HTMLDivElement).style.height = `${orig_size * 100}%`;
         (clone as HTMLDivElement).style.height = `${clone_size * 100}%`;
-        // chrome.storage.local.set({filteringPercentage: orig_size * 100});
+
+        // 스냅 상태 클래스 관리
+        clone.classList.toggle('snapped-hidden', clone_size === 0);
+        orig.classList.toggle('snapped-hidden', orig_size === 0);
     }
 }
 
@@ -635,7 +687,7 @@ const qwer = new ResizeObserver(entries => {
         const liveArea = document.querySelector('.live-area');
         if (liveArea == null) return;
         container.style.setProperty('height', h + 'px');
-        if (chatCollector.isUse) {
+        if (chatCollector?.isUse) {
             divideContainer();
             const index = (filterArea as HTMLElement).style.height.indexOf('%');
             const filterAreaHeightNumber = (filterArea as HTMLElement).style.height.substring(0, index);

@@ -38,7 +38,7 @@ export default function App(props: IProps) {
         <img width="180"/>
         <div className="top-menu">
           <a href="https://github.com/taewooyo/afreecaTV-plus/issues" target="_blank">버그 제보</a>
-          <a href="https://www.sooplive.co.kr" target="_blank">soop 바로가기</a>
+          <a href="https://www.sooplive.com" target="_blank">soop 바로가기</a>
         </div>
       </header>
       <ChatOptions {...props} />

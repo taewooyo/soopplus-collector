@@ -99,10 +99,51 @@ function filter(nickname: string, rawUserId: string, grade: string): boolean {
 }
 
 let chatArea: Element | null
+
+// 성능 최적화: CSS 기반 뱃지 숨기기 클래스 토글
+function updateBadgeClasses() {
+    const areas = [document.querySelector('.live-area'), document.querySelector('.filter-area')];
+    areas.forEach(area => {
+        if (!area) return;
+        area.classList.toggle('hide-subscribe', !!subscribeBadge?.isUse);
+        area.classList.toggle('hide-topfan', !!topFanBadge?.isUse);
+        area.classList.toggle('hide-fan', !!fanBadge?.isUse);
+        area.classList.toggle('hide-support', !!supportBadge?.isUse);
+    });
+}
+
+// 성능 최적화: Range API를 사용한 일괄 DOM 삭제
+function trimChildren(el: Element, maxCount: number) {
+    const overflow = el.children.length - maxCount;
+    if (overflow > 0) {
+        const range = document.createRange();
+        range.setStartBefore(el.children[0]);
+        range.setEndAfter(el.children[overflow - 1]);
+        range.deleteContents();
+    }
+}
+
+// 성능 최적화: 배치 처리 + 쓰로틀링
+let pendingMutations: MutationRecord[] = [];
+let flushScheduled = false;
+const FLUSH_INTERVAL = 200; // ms
+
 const callback = (mutationList: MutationRecord[], observer: MutationObserver) => {
+    pendingMutations.push(...mutationList);
+    if (!flushScheduled) {
+        flushScheduled = true;
+        setTimeout(flushPendingNodes, FLUSH_INTERVAL);
+    }
+};
+
+function flushPendingNodes() {
+    flushScheduled = false;
+    const mutations = pendingMutations;
+    pendingMutations = [];
+
     requestAnimationFrame(() => {
         const fragment = document.createDocumentFragment();
-        mutationList.forEach((mutation: MutationRecord) => {
+        for (const mutation of mutations) {
             mutation.addedNodes.forEach((node) => {
                 if (node.parentNode == null) return;
                 if (node.nodeName === 'DIV') {
@@ -117,30 +158,7 @@ const callback = (mutationList: MutationRecord[], observer: MutationObserver) =>
                     const grade = userButton.getAttribute('grade');
                     if (rawUserId == null || nickName == null || grade == null) return;
 
-                    // 구독자 뱃지 제거
-                    const thumb = (node as HTMLElement).querySelector('.thumb');
-                    if (thumb != null) {
-                        (thumb as HTMLElement).style.display = subscribeBadge?.isUse ? "none" : "inline-block";
-                    }
-
-                    // 열혈팬 뱃지 제거
-                    const topFan = (node as HTMLElement).querySelector('.grade-badge-vip');
-                    if (topFan != null) {
-                        (topFan as HTMLElement).style.display = topFanBadge?.isUse ? "none" : "";
-                    }
-
-                    // 팬 뱃지 제거
-                    const fan = (node as HTMLElement).querySelector('.grade-badge-fan');
-                    if (fan != null) {
-                        (fan as HTMLElement).style.display = fanBadge?.isUse ? "none" : "";
-                    }
-
-                    // 서포터 뱃지 제거
-                    const support = (node as HTMLElement).querySelector('.grade-badge-support');
-                    if (support != null) {
-                        (support as HTMLElement).style.display = supportBadge?.isUse ? "none" : "";
-                    }
-
+                    // 뱃지 숨기기는 CSS 클래스로 처리 (updateBadgeClasses)
                     // 채팅 분리선
                     const author = (node as HTMLElement).querySelector('.author');
                     if (author != null) {
@@ -167,22 +185,18 @@ const callback = (mutationList: MutationRecord[], observer: MutationObserver) =>
                     }
                 }
             });
-        });
+        }
         if (filterArea) {
             filterArea.appendChild(fragment);
-            while (filterArea.children.length > 500) {
-                if (filterArea.firstChild) {
-                    filterArea.removeChild(filterArea.firstChild);
-                } else {
-                    break;
-                }
-            }
-            if (!isUserScrolling) {
-                filterArea.scrollTop = filterArea.scrollHeight; // 스크롤 위치 복원
+            // 성능 최적화: Range API로 일괄 삭제
+            trimChildren(filterArea, 300);
+            // 성능 최적화: scrollIntoView로 reflow 최소화
+            if (!isUserScrolling && filterArea.lastElementChild) {
+                filterArea.lastElementChild.scrollIntoView({ block: 'end', behavior: 'instant' });
             }
         }
     });
-};
+}
 
 let filterArea: HTMLDivElement;
 
@@ -221,13 +235,28 @@ async function initLocalChatContainer() {
     const resizeHandle = document.createElement('div');
     resizeHandle.id = "tbc-resize-handle";
     handleContainer.id = "handle-container";
-    handleContainer.style.position = 'relative';
     handleContainer.appendChild(resizeHandle);
     handleContainer.style.display = "none";
 
+    // 그립 도트 추가
+    const gripDots = document.createElement('div');
+    gripDots.className = 'grip-dots';
+    for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'grip-dot';
+        gripDots.appendChild(dot);
+    }
+    resizeHandle.appendChild(gripDots);
+
     handleContainer.addEventListener("mousedown", startDrag);
     handleContainer.addEventListener("touchstart", startDrag);
-    handleContainer.appendChild(resizeHandle);
+    // 더블클릭 시 기본 비율(30%)로 복원
+    handleContainer.addEventListener("dblclick", () => {
+        containerRatio = 30;
+        position = "up";
+        updateContainerRatio(containerRatio, position);
+        chrome.storage.local.set({containerRatio, position});
+    });
 
     container.appendChild(filterArea);
     container.appendChild(handleContainer);
@@ -471,10 +500,8 @@ window.addEventListener('load', async () => {
     if (chatCollector.isUse) {
         await divideContainer()
     } else restoreContainer()
-    // const t = document.getElementById("chatbox");
-    // if (t != null) {
-    //     resizeObserver.observe(t);
-    // }
+    // 성능 최적화: CSS 기반 뱃지 숨기기 적용
+    updateBadgeClasses();
     CaptureButton();
     CollectorChange();
     const observer = new MutationObserver(callback);
@@ -536,6 +563,8 @@ chrome.storage.local.onChanged.addListener(async (changes) => {
             (filterArea as HTMLElement).removeAttribute('data-mngr');
         }
     }
+    // 성능 최적화: CSS 기반 뱃지 숨기기 적용
+    updateBadgeClasses();
     if (chatCollector.isUse) {
         await divideContainer()
     } else restoreContainer()
@@ -552,6 +581,18 @@ const startDrag = function (e: MouseEvent | TouchEvent) {
     e.preventDefault();
 
     if (!filterArea) return;
+
+    // 드래그 중 transition 비활성화
+    const fa = document.querySelector('.filter-area') as HTMLElement;
+    const la = document.querySelector('.live-area') as HTMLElement;
+    if (fa) fa.style.transition = 'none';
+    if (la) la.style.transition = 'none';
+
+    // 드래그 시각 피드백
+    const handle = document.getElementById('handle-container');
+    handle?.classList.add('is-dragging');
+    document.body.classList.add('dragging');
+
     if (!collectorChangeFlag) {
         filterArea.classList.add("freeze");
         position = getPosition(filterArea);
@@ -593,8 +634,18 @@ const endDrag = function () {
         liveArea.classList.remove("freeze");
     }
 
+    // 드래그 시각 피드백 제거
+    const handle = document.getElementById('handle-container');
+    handle?.classList.remove('is-dragging');
+    document.body.classList.remove('dragging');
+
+    // transition 복원
+    const fa = document.querySelector('.filter-area') as HTMLElement;
+    const la = document.querySelector('.live-area') as HTMLElement;
+    if (fa) fa.style.transition = '';
+    if (la) la.style.transition = '';
+
     chrome.storage.local.set({containerRatio, position});
-    // chrome.storage.local.set({position});
     window.removeEventListener("mousemove", doDrag);
     window.removeEventListener("touchmove", doDrag);
     window.removeEventListener("mouseup", endDrag);
@@ -606,6 +657,9 @@ function updateContainerRatio(
     position: string,
 ) {
     if (ratio != 0) ratio = ratio ? ratio : 30;
+
+
+
 
     let orig_size = ratio === 0 ? 1 : ratio === 10 ? 0 : 1;
     let clone_size = ratio === 0 ? 0 : ratio === 10 ? 1 : 0;
@@ -626,7 +680,10 @@ function updateContainerRatio(
 
         (orig as HTMLDivElement).style.height = `${orig_size * 100}%`;
         (clone as HTMLDivElement).style.height = `${clone_size * 100}%`;
-        // chrome.storage.local.set({filteringPercentage: clone_size * 100});
+
+        // 스냅 상태 클래스 관리
+        clone.classList.toggle('snapped-hidden', clone_size === 0);
+        orig.classList.toggle('snapped-hidden', orig_size === 0);
     } else {
         const orig = document.querySelector(".filter-area");
         const clone = document.querySelector(".live-area");
@@ -634,7 +691,10 @@ function updateContainerRatio(
 
         (orig as HTMLDivElement).style.height = `${orig_size * 100}%`;
         (clone as HTMLDivElement).style.height = `${clone_size * 100}%`;
-        // chrome.storage.local.set({filteringPercentage: orig_size * 100});
+
+        // 스냅 상태 클래스 관리
+        clone.classList.toggle('snapped-hidden', clone_size === 0);
+        orig.classList.toggle('snapped-hidden', orig_size === 0);
     }
 }
 
@@ -652,7 +712,7 @@ const qwer = new ResizeObserver(entries => {
         const liveArea = document.querySelector('.live-area');
         if (liveArea == null) return;
         container.style.setProperty('height', h + 'px');
-        if (chatCollector.isUse) {
+        if (chatCollector?.isUse) {
             divideContainer();
             const index = (filterArea as HTMLElement).style.height.indexOf('%');
             const filterAreaHeightNumber = (filterArea as HTMLElement).style.height.substring(0, index);
@@ -683,7 +743,7 @@ const qqq = new ResizeObserver(entries => {
         const liveArea = document.querySelector('.live-area');
         if (liveArea == null) return;
         container.style.setProperty('height', h + 'px');
-        if (chatCollector.isUse) {
+        if (chatCollector?.isUse) {
             divideContainer();
             const index = (filterArea as HTMLElement).style.height.indexOf('%');
             const filterAreaHeightNumber = (filterArea as HTMLElement).style.height.substring(0, index);

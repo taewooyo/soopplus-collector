@@ -132,12 +132,12 @@ const CollectorOptions = ({ wrapStyle, ...props }: IProps) => {
         />
         <Toggle
           onChange={changeToggle("topfan")}
-          label="구독팬"
+          label="열혈팬"
           value={toggle.topfan}
         />
         <Toggle
           onChange={changeToggle("gudok")}
-          label="열혈팬"
+          label="구독팬"
           value={toggle.gudok}
         />
         <Toggle

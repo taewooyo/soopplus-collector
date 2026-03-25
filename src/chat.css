@@ -7,6 +7,12 @@
     cursor: row-resize;
 }
 
+/* 디바이더 드래그 중 영역 오버레이 */
+.freeze {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
 .myBox {
     order: 1;
     width: 100%;
@@ -56,16 +62,79 @@
 #handle-container {
     width: 100%;
     order: 2;
-    /*height: 2rem;*/
     cursor: row-resize;
-    /*margin-top: 5px;*/
+    position: relative;
+    z-index: 5;
+    padding: 2px 0;
+    transition: background-color 0.15s ease;
+}
+
+#handle-container:hover {
+    background-color: rgba(66, 99, 186, 0.08);
+}
+
+#handle-container.is-dragging {
+    background-color: rgba(66, 99, 186, 0.15);
 }
 
 #tbc-resize-handle {
     display: flex;
-    height: 0.5rem;
-    border-top: 2px solid rgb(173, 170, 170);
-    margin: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    height: 12px;
+    border-top: 2px solid rgb(200, 200, 200);
+    margin: 0 0.5rem;
+    transition: border-color 0.15s ease;
+}
+
+#handle-container:hover #tbc-resize-handle {
+    border-top-color: #4263ba;
+}
+
+#handle-container.is-dragging #tbc-resize-handle {
+    border-top-color: #4263ba;
+}
+
+/* 그립 도트 */
+.grip-dots {
+    display: flex;
+    gap: 3px;
+    margin-top: -1px;
+}
+
+.grip-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: rgb(180, 180, 180);
+    transition: background-color 0.15s ease;
+}
+
+#handle-container:hover .grip-dot {
+    background-color: #4263ba;
+}
+
+#handle-container.is-dragging .grip-dot {
+    background-color: #4263ba;
+}
+
+/* 콜렉터 영역 */
+.filter-area {
+    position: relative;
+}
+
+/* 스냅 전환 애니메이션 */
+.filter-area,
+.live-area {
+    transition: height 0.15s ease;
+}
+
+.filter-area.snapped-hidden,
+.live-area.snapped-hidden {
+    overflow: hidden;
+    visibility: hidden;
+    min-height: 0 !important;
+    padding: 0 !important;
 }
 
 .main_chat_area {
@@ -108,4 +177,21 @@
 
 #chat_area[data-mngr*="chat_sort"] .chatting-list-item .message-container .message-text {
     flex: 1;
+}
+
+/* 성능 최적화: CSS 기반 뱃지 숨기기 */
+.hide-subscribe .thumb {
+    display: none !important;
+}
+
+.hide-topfan .grade-badge-vip {
+    display: none !important;
+}
+
+.hide-fan .grade-badge-fan {
+    display: none !important;
+}
+
+.hide-support .grade-badge-support {
+    display: none !important;
 }
