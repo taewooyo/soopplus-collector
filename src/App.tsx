@@ -1,35 +1,28 @@
-import { ChatCollectorData } from "./model/ChatCollectorData";
-import { ChatSetting } from "./model/ChatSetting";
-import { ChatTwoLine } from "./model/ChatTwoLine";
-import { Divider } from "./model/Divider";
-import { FanBadge } from "./model/FanBadge";
-import { Highlight } from "./model/Highlight";
-import { SubscribeBadge } from "./model/SubscribeBadge";
-import { SupportBadge } from "./model/SupportBadge";
-import { ToggleData } from "./model/ToggleData";
-import { TopfanBadge } from "./model/TopfanBadge";
-import { User } from "./model/User";
-import ChatOptions from "./ChatOptions";
-import CollectorOptions from "./CollectorOptions";
+import { ChatOptions } from "./features/chat";
+import { CollectorOptions } from "./features/collector";
+import { useHasHydratedChat } from "./stores/useChatStore";
+import { useHasHydratedCollector } from "./stores/useCollectorStore";
+import { useHasHydratedFilter } from "./stores/useFilterStore";
 
 import "./App.css";
 
-interface IProps {
-  nicks: User[];
-  ids: User[];
-  toggle: ToggleData;
-  collector: ChatCollectorData;
-  chatSetting: ChatSetting;
-  chatTwoLine: ChatTwoLine;
-  fanBadge: FanBadge;
-  subscribeBadge: SubscribeBadge;
-  supportBadge: SupportBadge;
-  topfanBadge: TopfanBadge;
-  divider: Divider;
-  highlight: Highlight;
-}
+export default function App() {
+  const hasChatHydrated = useHasHydratedChat();
+  const hasCollectorHydrated = useHasHydratedCollector();
+  const hasFilterHydrated = useHasHydratedFilter();
 
-export default function App(props: IProps) {
+  const isHydrated = hasChatHydrated && hasCollectorHydrated && hasFilterHydrated;
+
+  if (!isHydrated) {
+    return (
+      <article className="wrapper" role="main" aria-label="Soop Plus 확장프로그램 설정">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+          <span>로딩중...</span>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className="wrapper" role="main" aria-label="Soop Plus 확장프로그램 설정">
       <header>
@@ -57,8 +50,8 @@ export default function App(props: IProps) {
         </nav>
       </header>
       <main>
-        <ChatOptions {...props} />
-        <CollectorOptions {...props} wrapStyle={{ marginTop: '1rem' }} />
+        <ChatOptions />
+        <CollectorOptions wrapStyle={{ marginTop: '1rem' }} />
       </main>
       <footer role="contentinfo">
         <b>2024 Soop Plus Project</b>
