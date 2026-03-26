@@ -1,7 +1,7 @@
 {
   "name": "SOOP Plus",
   "description": "SOOP 스트리밍 서비스 SOOP Plus",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "manifest_version": 3,
   "action": {
     "default_popup": "index.html",
